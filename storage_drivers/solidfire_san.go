@@ -304,7 +304,6 @@ func (d *SolidfireSANStorageDriver) CreateClone(name, source, snapshot, newSnaps
 	var modifyReq sfapi.ModifyVolumeRequest
 	v, err = d.getVolume(name, d.TenantID)
 	// TODO(jdg): Add a check for error here
-
 	modifyReq.VolumeID = v.VolumeID
 	modifyReq.AccountID = d.TenantID
 	modifyReq.Attributes = meta
