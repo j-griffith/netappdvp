@@ -266,6 +266,10 @@ func (d *SolidfireSANStorageDriver) CreateClone(name, source, snapshot, newSnaps
 	log.Debugf("SolidfireSANStorageDriver#CreateClone(%v, %v, %v, %v)", name, source, snapshot, newSnapshotPrefix)
 
 	var req sfapi.CloneVolumeRequest
+	var meta = map[string]string{"platform": "Docker-NDVP",
+		"ndvp-version": DriverVersion + " [" + ExtendedDriverVersion + "]",
+		"docker-name":  name}
+
 	// Check to see if the clone already exists
 	v, err := d.getVolume(name, d.TenantID)
 	if err == nil && v.VolumeID != 0 {
@@ -290,10 +294,24 @@ func (d *SolidfireSANStorageDriver) CreateClone(name, source, snapshot, newSnaps
 
 	// Create the clone of the source volume with the name specified
 	req.VolumeID = v.VolumeID
-	req.Name = name
+	req.Name = MakeSolidFireName(name)
 	_, err = d.Client.CloneVolume(&req)
 	if err != nil {
 		return fmt.Errorf("Failed to create clone: error: %v", err)
+	}
+
+	// Update the attributes on the clone with name and dvp stuff
+	var modifyReq sfapi.ModifyVolumeRequest
+	v, err = d.getVolume(name, d.TenantID)
+	// TODO(jdg): Add a check for error here
+
+	modifyReq.VolumeID = v.VolumeID
+	modifyReq.AccountID = d.TenantID
+	modifyReq.Attributes = meta
+	err = d.Client.ModifyVolume(&modifyReq)
+
+	if err != nil {
+		return fmt.Errorf("Failed to set attribtues on clone: error: %v", err)
 	}
 	return nil
 }

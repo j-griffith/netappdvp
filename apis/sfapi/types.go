@@ -311,3 +311,12 @@ type GetClusterCapacityResult struct {
 		ClusterCapacity ClusterCapacity `json:"clusterCapacity"`
 	} `json:"result"`
 }
+
+// ModifyVolumeRequest tbd
+type ModifyVolumeRequest struct {
+	VolumeID   int64       `json:"volumeID"`
+	AccountID  int64       `json:"accountID,omitempty"`
+	TotalSize  int64       `json:"totalSize,omitempty"`
+	Qos        QoS         `json:"qos,omitempty"`
+	Attributes interface{} `json:"attributes,omitempty"`
+}
