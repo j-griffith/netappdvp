@@ -272,3 +272,13 @@ func (c *Client) AttachVolume(v *Volume, iface string) (path, device string, err
 	}
 	return path, device, nil
 }
+
+// ModifyVolume: updates existing volume
+func (c *Client) ModifyVolume(modReq *ModifyVolumeRequest) (err error) {
+	_, err = c.Request("ModifyVolume", modReq, newReqID())
+	if err != nil {
+		return err
+	}
+	// only thing that comes back from this is the curve, which is not used
+	return nil
+}
