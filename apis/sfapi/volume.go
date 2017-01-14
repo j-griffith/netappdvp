@@ -275,7 +275,7 @@ func (c *Client) AttachVolume(v *Volume, iface string) (path, device string, err
 
 // ModifyVolume: updates existing volume
 func (c *Client) ModifyVolume(modReq *ModifyVolumeRequest) (err error) {
-	_, err = c.Request("ModifyVolume", modReq, newReqID())
+	_, err = c.Request("ModifyVolume", modReq, NewReqID())
 	if err != nil {
 		return err
 	}

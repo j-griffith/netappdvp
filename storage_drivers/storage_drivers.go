@@ -14,6 +14,7 @@ const ConfigVersion = 1
 
 // DriverVersion is the actual release version number
 const DriverVersion = "1.3.2"
+
 // ExtendedDriverVersion can be overridden by embeddors such as Trident to uniquify the version string
 var ExtendedDriverVersion = "native"
 
@@ -92,6 +93,7 @@ type SolidfireStorageDriverConfig struct {
 	DefaultVolSz              int64 //Default volume size in GiB
 	SVIP                      string
 	InitiatorIFace            string //iface to use of iSCSI initiator
+	LegacyNamePrefix          string //Name prefix used in prior ndvp versions
 	Types                     *[]sfapi.VolType
 }
 

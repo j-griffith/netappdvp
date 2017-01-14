@@ -30,6 +30,7 @@ type Client struct {
 }
 
 // Config holds the configuration data for the Client to communicate with a SolidFire storage system
+// NOTE(jdg): Not used by ndvp?
 type Config struct {
 	TenantName       string
 	EndPoint         string
