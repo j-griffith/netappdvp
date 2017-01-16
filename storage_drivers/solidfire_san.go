@@ -5,10 +5,12 @@ package storage_drivers
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/alecthomas/units"
+	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/netapp/netappdvp/apis/sfapi"
 	"github.com/netapp/netappdvp/utils"
 
@@ -375,6 +377,26 @@ func (d *SolidfireSANStorageDriver) DefaultStoragePrefix() string {
 // DefaultSnapshotPrefix is the driver specific prefix for created snapshots, can be overridden in the config file
 func (d *SolidfireSANStorageDriver) DefaultSnapshotPrefix() string {
 	return "netappdvp-"
+}
+
+// Return the list of volumes according to backend device
+func (d *SolidfireSANStorageDriver) VolumeList(vDir string) ([]*volume.Volume, error) {
+	log.Info("List volumes from SolidFire backend")
+	var req sfapi.ListVolumesForAccountRequest
+	var vols []*volume.Volume
+	req.AccountID = d.TenantID
+	volumes, err := d.Client.ListVolumesForAccount(&req)
+	for _, v := range volumes {
+		if v.Status != "deleted" {
+			attrs, _ := v.Attributes.(map[string]interface{})
+			dName := strings.Replace(v.Name, d.LegacyNamePrefix, "", -1)
+			if str, ok := attrs["docker-name"].(string); ok {
+				dName = strings.Replace(str, d.LegacyNamePrefix, "", -1)
+			}
+			vols = append(vols, &volume.Volume{Name: dName, Mountpoint: filepath.Join(vDir, v.Name)})
+		}
+	}
+	return vols, err
 }
 
 // Return the list of snapshots associated with the named volume

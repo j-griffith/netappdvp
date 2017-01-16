@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/netapp/netappdvp/apis/sfapi"
 )
 
@@ -119,4 +120,5 @@ type StorageDriver interface {
 	DefaultStoragePrefix() string
 	DefaultSnapshotPrefix() string
 	SnapshotList(name string) ([]CommonSnapshot, error)
+	VolumeList(rootDir string) ([]*volume.Volume, error)
 }

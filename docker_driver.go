@@ -351,10 +351,19 @@ func (d ndvpDriver) Unmount(r volume.UnmountRequest) volume.Response {
 
 // List is part of the core Docker API and is called to list all known docker volumes for this plugin
 func (d ndvpDriver) List(r volume.Request) volume.Response {
+	var vols []*volume.Volume
 	d.m.Lock()
 	defer d.m.Unlock()
 
 	log.Debugf("List(%v)", r)
+
+	if d.isSF == true {
+		vols, err := d.sd.VolumeList(d.root)
+		if err != nil {
+			return volume.Response{Err: fmt.Sprintf("Problem reading volumes from backend: %v", err)}
+		}
+		return volume.Response{Volumes: vols}
+	}
 
 	// open directory ...
 	volumeDir := d.root
@@ -374,7 +383,6 @@ func (d ndvpDriver) List(r volume.Request) volume.Response {
 	}
 
 	// finally, we spin through all the subdirectories (if any) and return them in our List response
-	var vols []*volume.Volume
 	dirs := make([]string, 0)   // lint complains to switch to this, but it doens't work -> var dirs []string
 	fis, err := dir.Readdir(-1) // -1 means return all the FileInfos
 	if err != nil {
