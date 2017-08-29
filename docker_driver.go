@@ -20,6 +20,7 @@ type ndvpDriver struct {
 	root   string
 	config storage_drivers.CommonStorageDriverConfig
 	sd     storage_drivers.StorageDriver
+	mounts map[string]int64
 }
 
 func (d *ndvpDriver) volumeName(name string) string {
@@ -52,6 +53,7 @@ func newNetAppDockerVolumePlugin(root string, config storage_drivers.CommonStora
 		config: config,
 		m:      &sync.Mutex{},
 		sd:     storage_drivers.Drivers[config.StorageDriverName],
+		mounts: make(map[string]int64),
 	}
 
 	return d, nil
@@ -63,6 +65,7 @@ func (d ndvpDriver) Create(r *volume.CreateRequest) error {
 	defer d.m.Unlock()
 
 	log.Debugf("Create(%v)", r)
+	d.mounts[r.Name] = 0
 
 	opts := r.Options
 	target := d.volumeName(r.Name)
@@ -197,10 +200,12 @@ func (d ndvpDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 
 // Mount is part of the core Docker API and is called to mount a docker volume
 func (d ndvpDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error) {
+	log.Debugf("Mount(%v)", r)
 	d.m.Lock()
 	defer d.m.Unlock()
-
-	log.Debugf("Mount(%v)", r)
+	log.Debugf("Increment the mount counter for volume %s", r.Name)
+	d.mounts[r.Name] += 1
+	log.Debugf("value of counter for %s is %v", r.Name, d.mounts[r.Name])
 
 	target := d.volumeName(r.Name)
 
@@ -250,10 +255,17 @@ func (d ndvpDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error)
 
 // Unmount is part of the core Docker API and is called to unmount a docker volume
 func (d ndvpDriver) Unmount(r *volume.UnmountRequest) error {
+	log.Debugf("Unmount(%v)", r)
 	d.m.Lock()
 	defer d.m.Unlock()
 
-	log.Debugf("Unmount(%v)", r)
+	// NOTE(jdg): The other Netapp devices reportedly work fine as is, so don't mess with what they do,
+	// they handle this on their own with the shared targets and keeping track themeselves.
+	d.mounts[r.Name] -= 1
+	if (d.mounts[r.Name] >= 1) && (d.sd.Name() == "solidfire-san") {
+		log.Debugf("skipping removal during unmount due to remaining mounts: %v", d.mounts[r.Name])
+		return nil
+	}
 
 	target := d.volumeName(r.Name)
 
