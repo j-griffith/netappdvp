@@ -96,11 +96,25 @@ func (d ndvpDriver) Create(r *volume.CreateRequest) error {
 func (d ndvpDriver) Remove(r *volume.RemoveRequest) error {
 	d.m.Lock()
 	defer d.m.Unlock()
-
 	log.Debugf("Remove(%v)", r)
-
 	target := d.volumeName(r.Name)
 
+	// First we're going to remove any mounts/connections that might exist
+	m := d.mountpoint(target)
+
+	// use the StorageDriver to unmount the storage objects
+	// we need to check if the mountpoint exists, that'll be our indication that
+	// it's attached and needs cleaned up
+	_, err := os.Stat(m)
+	if err == nil {
+		detachErr := d.sd.Detach(target, m)
+		if detachErr != nil {
+			log.Warning("error encountered during detach: %+v", detachErr)
+		}
+		os.Remove(m)
+	}
+
+	// Now the actual volume removal
 	// allow user to completely disable volume deletion
 	if d.config.DisableDelete {
 		log.Infof("Skipping removal of %s because of user preference to disable volume deletion", target)
@@ -112,11 +126,6 @@ func (d ndvpDriver) Remove(r *volume.RemoveRequest) error {
 	if destroyErr != nil {
 		return fmt.Errorf("Problem removing docker volume: %v error: %v", target, destroyErr)
 	}
-
-	// Best effort removal of the mountpoint
-	m := d.mountpoint(target)
-	os.Remove(m)
-
 	return nil
 }
 
@@ -250,24 +259,7 @@ func (d ndvpDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error)
 
 // Unmount is part of the core Docker API and is called to unmount a docker volume
 func (d ndvpDriver) Unmount(r *volume.UnmountRequest) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-
-	log.Debugf("Unmount(%v)", r)
-
-	target := d.volumeName(r.Name)
-
-	m := d.mountpoint(target)
-
-	// use the StorageDriver to unmount the storage objects
-	detachErr := d.sd.Detach(target, m)
-	if detachErr != nil {
-		return fmt.Errorf("Problem unmounting docker volume: %v error: %v", target, detachErr)
-	}
-
-	// Best effort removal of the mountpoint
-	os.Remove(m)
-
+	// NOTE(jdg): We don't actually do anything here, instead we disconnect and remove the mountpoint on delete of the volume
 	return nil
 }
 
