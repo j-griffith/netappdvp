@@ -431,6 +431,18 @@ func (d *SolidfireSANStorageDriver) Attach(name, mountpoint string, opts map[str
 		return errors.New("iSCSI attach error")
 	}
 	log.Debugf("Attached volume at (path, devfile): %s, %s", path, device)
+
+	// NOTE(jdg): Check for device including multipath/DM device)
+	info, err := utils.GetDeviceInfoForLuns()
+	for _, e := range info {
+		if e.Device != device {
+			continue
+		}
+		if e.MultipathDevice != "" {
+			device = e.MultipathDevice
+		}
+	}
+
 	if utils.GetFSType(device) == "" {
 		//TODO(jdg): Enable selection of *other* fs types
 		err := utils.FormatVolume(device, "ext4")
