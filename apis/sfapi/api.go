@@ -28,6 +28,7 @@ type Client struct {
 	Config            *Config
 	AccessGroups      []int64
 	DefaultBlockSize  int64
+	RedisAddress      string
 }
 
 // Config holds the configuration data for the Client to communicate with a SolidFire storage system
@@ -41,6 +42,7 @@ type Config struct {
 	LegacyNamePrefix string
 	AccessGroups     []int64
 	DefaultBlockSize int64
+	RedisAddress     string
 }
 
 // VolType holds quality of service configuration data
@@ -68,6 +70,7 @@ func NewFromParameters(pendpoint string, psvip string, pcfg Config, pdefaultTena
 		VolumeTypes:       pcfg.Types,
 		DefaultTenantName: pdefaultTenantName,
 		DefaultBlockSize:  pcfg.DefaultBlockSize,
+		RedisAddress:      pcfg.RedisAddress,
 	}
 	return SFClient, nil
 }

@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/mediocregopher/radix.v2/redis"
 	"github.com/netapp/netappdvp/apis/sfapi"
 	"github.com/netapp/netappdvp/utils"
 )
@@ -112,6 +114,7 @@ func (d *SolidfireSANStorageDriver) Initialize(
 		LegacyNamePrefix: c.LegacyNamePrefix,
 		AccessGroups:     c.AccessGroups,
 		DefaultBlockSize: defaultBlockSize,
+		RedisAddress:     c.RedisAddress,
 	}
 	defaultTenantName := c.TenantName
 
@@ -252,10 +255,34 @@ func (d *SolidfireSANStorageDriver) Create(name string, sizeBytes uint64, opts m
 		"ndvp-version": DriverVersion + " [" + ExtendedDriverVersion + "]",
 		"docker-name":  name}
 
+	// NOTE(jdg): The GetVolume func will convert to SolidFireName
 	v, err := d.GetVolume(name)
 	if err == nil && v.VolumeID != 0 {
 		log.Warningf("found existing Volume by name: %s", name)
 		return errors.New("volume with requested name already exists")
+	}
+
+	if d.Config.RedisAddress != "" {
+		rcon, err := redis.Dial("tcp", d.Config.RedisAddress)
+		if err != nil {
+			log.Warnf("failed to connect to redis server: %v", err)
+		}
+		defer rcon.Close()
+		// TODO: (JDG) Would be good to add a value identifying this Node/Host
+		resp := rcon.Cmd("setnx", MakeSolidFireName(name), "creating")
+		// Value of 1 means we set it, 0 means it was already set
+		// We'll wait a couple seconds, check again then if we still don't
+		// find it assume the worst, continue on and create it
+		if i, _ := resp.Int(); i == 0 {
+			time.Sleep(2)
+			v, err := d.GetVolume(name)
+			if err == nil && v.VolumeID != 0 {
+				log.Warningf("found existing Volume by name: %s", name)
+				return errors.New("volume with requested name already exists")
+			}
+		} else {
+			resp = rcon.Cmd("expire", 20)
+		}
 	}
 
 	qos_opt := utils.GetV(opts, "qos", "")
